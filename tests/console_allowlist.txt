@@ -1,0 +1,9 @@
+# Console error allowlist: one substring per line (case-insensitive).
+# Lines starting with # are ignored. Empty lines are ignored.
+# If a console error message contains any of these substrings, it is treated as non-blocking.
+cookie
+tracking
+analytics
+gtag
+facebook
+cloudflare

@@ -1,0 +1,75 @@
+# Project Rules: t23b.org Test Automation
+
+## Project context
+- This is a test automation project for the website t23b.org.
+
+## Workflow: when to act vs when to propose
+- If the user **did not** explicitly say to do something immediately (e.g. "do it", "make the change", "do it this way"):
+  - **First** answer what they wrote (especially if they asked a question).
+  - Give options, reasoning, pros/cons — but **do not** change code or files by default.
+- The user reads the answer and says "do it this way" or "do it the other way" (or clarifies).
+- **Only then** apply changes, so we avoid redoing work many times.
+- If the message contains both a question and a request to do something: answer the question and propose a plan first; wait for the user's "do it" before editing.
+
+## Language rules
+- **User input:** All tasks and instructions from the user are written in Russian.
+- **Output documents:** All source documents and deliverables produced by the assistant must be in English.
+- **In-Cursor communication:** Comments and explanations for the user within Cursor (chat, inline explanations) should be in Russian.
+- **Project files:** Any files created in the t23b.org folder in response to user requests must contain only English (code, comments, documentation, and file content).
+
+## Test automation: pytest output and reports
+
+### Key variables in pytest report
+- When creating or editing tests, ensure **key variables** are visible in the pytest run output (e.g. in PyCharm or terminal).
+- Use `print(f"\n[test_name] variable_name = {value!r}")` (or equivalent) for values that matter: assertions inputs, fetched text, URLs, response codes, etc., so the run report shows what the test actually received.
+- Tests are run with pytest flag `-s` so that `print` output is not captured and appears in the report.
+
+### Reports: logs and screenshots
+- Reports are produced as **logs** (text) and **screenshots** (images). No external report framework (e.g. Allure) is used; everything is written by the project’s own code (e.g. `StepLogger` and fixtures in `tests/`).
+
+### Numbering and naming (mandatory)
+- **Test case documents:** One file per test case set: `TC-NN-<short-name>.md` (e.g. `TC-01-page-load-and-identity.md`). Do **not** use "US" in names (no `TC-US-NN-...`).
+- **Test case IDs in docs:** Use `TC-NN-MM` (e.g. `TC-01-01`, `TC-03-02`). In document headers and body, refer to "Test Case: TC-NN", not "User Story: US-NN".
+- **Test module files:** Name test files by test case number: `test_TC_NN_<short_name>.py` (e.g. `test_TC_01_page_load_and_identity.py`, `test_TC_04_whats_due_soon.py`).
+- **Test function names:** Use the pattern `test_TC_NN_M_<description>` where NN is the test case number (zero-padded) and M is the step/index within that case (1, 2, 3, …). Examples: `test_TC_01_1_homepage_returns_200`, `test_TC_01_2_page_title_contains_troop23`, `test_TC_03_1_boy_scout_block_visible`.
+- **Result folder layout:** One folder per **test case** (not per test function): `results/YYYY-MM-DD_HH-MM-SS/TC_NN/` (e.g. `TC_01`, `TC_03`). Inside that folder, artefact filenames use the **full** test function name (sanitized) plus a running screenshot index and short label: `<full_test_name>_NN_<label>.png` (e.g. `test_TC_03_1_boy_scout_block_visible_01_event_page.png`).
+
+### Report format (mandatory)
+- **Root folder:** `results/` in the project root.
+- **Run folder:** one folder per test run, named by date and time: `results/YYYY-MM-DD_HH-MM-SS` (e.g. `results/2025-03-01_14-30-00`). Create it at the start of the run (e.g. in a session-scoped fixture).
+- **Per–test case folder:** inside the run folder, one subfolder per test case: `results/YYYY-MM-DD_HH-MM-SS/TC_NN/` (e.g. `TC_01`, `TC_04`). All tests belonging to that test case write their artefacts into this folder.
+- **Log file:** for each test function, one file named `<full_test_function_name>_log.txt` in the test case folder. Content: steps as sections (`[Step] <description>`, line of dashes, then entries). Entries may include `[Request]`, `[Response]`, `[Console]`, and `[Checkpoint] <description> — OK`. One `log.txt` per test with all steps in order.
+- **Screenshots:** for tests that use a browser page, there may be multiple screenshots per test. **All screenshots are full‑page captures of the loaded page.** Filenames follow `<full_test_function_name>_NN_<label>.png`, where `NN` is a 2‑digit running index (`01`, `02`, …) assigned automatically by `StepLogger`, and `<label>` is a short, English description passed from the test (e.g. `event_page`, `how_to_join_link_1`, `end`). At least one screenshot **must** be taken at the end of the test with label `end` (called from `finalize()`).
+- **Tests without browser:** only `<full_test_function_name>_log.txt` in the test case folder (no screenshots).
+- Use the existing `step_logger` fixture and `StepLogger` (e.g. in `tests/step_logger.py`): call `start_step()`, `checkpoint()`, and optionally `log_text()` and `take_screenshot(label)`; ensure `finalize()` writes the log and, when applicable, the final full‑page screenshot.
+
+### Link and navigation checks (mandatory)
+- Whenever a test checks for the presence of a **link** (or a section containing links), it must:
+  - Assert that the link element is visible.
+  - Assert that the `href` is non‑empty and matches the expected pattern (e.g. contains `/events/`, `how-to-join`, etc.).
+  - **Click the link** and verify that the resulting `page.url` matches the expectation (same pattern as for `href`).
+  - Capture a full‑page screenshot of the **destination page** using `step_logger.take_screenshot("<short_label>")` with a meaningful label (e.g. `event_page`, `how_to_join_link_1`).
+  - Add a checkpoint explicitly stating that navigation succeeded and screenshot is captured (e.g. `"Destination URL contains '/events/' and screenshot captured"`).
+- When multiple similar links are under test (e.g., several "Learn more" links):
+  - Loop over each link, validate its `href`, click it, verify the destination URL, and capture a screenshot for **each** link.
+  - Use distinct labels for screenshots (e.g. `how_to_join_link_1`, `how_to_join_link_2`).
+  - Between iterations, return to the starting page if needed (e.g. with `page.go_back(wait_until="domcontentloaded")`) so subsequent links can be exercised independently.
+
+## TC-04 (What's Due Soon): specifics and where we left off
+
+### Terminology
+- **Milestone** (in TC-04) = the type of deadline for an event: e.g. "Deposit Fee", "RSVP". It is the action that is due by a date, not a project phase. The Due table has: col0 = icon, col1 = milestone (with link), col2 = event name, col3 = due date.
+
+### What was done (session before last reboot)
+1. **Date comparison fix:** The test was comparing the milestone due date (e.g. Mar 1) to the main event "When:" block (e.g. July 5–11) instead of the milestone’s own date. Fixed by finding the date **after** the milestone heading on the event page, not inside a large ancestor.
+2. **No dependency on "When:" label:** The event-page date is now found by iterating `following::*` from the milestone heading and taking the **first element whose text parses as a date** (via `_parse_date_to_canonical`). So the site can change or remove the "When:" label without breaking the test.
+3. **Workflow rule added:** Answer first (especially questions), propose options; only change code after the user says "do it this way" or similar.
+4. **Review of TC-04 text bindings:** Documented that the only hardcoded text bindings are: (a) `"Due"` (to find the Due section on homepage, `exact=False`), (b) `"/events/"` in `href` to filter event links. No "When:", no specific event/milestone names.
+
+### TC-04 date search scope (for future reference)
+- **Due date (homepage):** Taken **only** from the 4th column (index 3) of each row in the Due table, inside `_due_container`. Not from the whole page.
+- **Event page date (for comparison):** Not the whole page. Search is limited to elements in the **following::** axis from the milestone heading (everything after that heading in the DOM). The first element whose `inner_text()` parses as a date is used. So: find milestone heading by name → then look for first block with a parseable date below it.
+
+### If user returns after reboot
+- They asked to record all of the above in the rules file so a new session would know where we left off and how they prefer to work (answer first, then act on "do it").
+- No open task left; TC-04 date logic is in place and tested. Next steps would be whatever the user asks next.
