@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import TextIO
 
 import pytest
-from playwright.sync_api import sync_playwright, Browser, Page
 
 from tests.step_logger import StepLogger
 
 BASE_URL = "https://www.t23b.org/"
+ABOUT_US_URL = BASE_URL + "about-us/"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -122,29 +122,26 @@ def step_logger(request, run_dir: Path):
     page = None
     if "page" in request.fixturenames:
         page = request.getfixturevalue("page")
-    logger = StepLogger(run_dir=run_dir, test_name=request.node.name, page=page)
+    browser_name = None
+    if "browser_name" in request.fixturenames:
+        browser_name = request.getfixturevalue("browser_name")
+    logger = StepLogger(
+        run_dir=run_dir,
+        test_name=request.node.name,
+        page=page,
+        browser_name=browser_name,
+    )
     yield logger
     logger.finalize()
-
-
-@pytest.fixture(scope="module")
-def browser():
-    """Launch browser once per test module; close after all tests in module."""
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        yield browser
-        browser.close()
-
-
-@pytest.fixture
-def page(browser: Browser):
-    """New page (tab) per test; closed after each test."""
-    page = browser.new_page()
-    yield page
-    page.close()
 
 
 @pytest.fixture
 def homepage_url():
     """Base URL of the site (homepage)."""
     return BASE_URL
+
+
+@pytest.fixture
+def about_us_url():
+    """URL of the About Us page."""
+    return ABOUT_US_URL

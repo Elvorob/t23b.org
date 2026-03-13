@@ -8,18 +8,13 @@ Second test: all links on homepage — check via API that each destination is no
 (status 2xx, minimum body length, HTML structure, non-empty title). No browser navigation or screenshots.
 """
 
-import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
-import requests
 from playwright.sync_api import Page
 
 from tests.conftest import BASE_URL
+from tests.link_checks import check_url_not_broken_and_not_empty
 from tests.main_page.link_visibility import report_links_visually_recognizable
-
-# API check: minimum response body length (bytes) to consider page "not empty".
-LINK_CHECK_MIN_BODY_LENGTH = 500
-LINK_CHECK_TIMEOUT = 15
 
 BASE_URL_NORMALIZED = BASE_URL.rstrip("/")
 
@@ -38,87 +33,6 @@ def _main_content(page: Page):
         .filter(has=page.get_by_text("New to Scouting", exact=False))
         .first
     )
-
-
-def _is_media_resource_url(url: str, content_type: str | None) -> bool:
-    """True if URL or Content-Type indicates image/media (no HTML expected)."""
-    path = urlparse(url).path.lower()
-    if path.endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".ico", ".pdf")):
-        return True
-    if content_type and content_type.split(";")[0].strip().lower().startswith(("image/", "application/pdf")):
-        return True
-    return False
-
-
-def _check_link_not_broken_and_not_empty(url: str) -> tuple[bool, str]:
-    """
-    Check via GET that the URL is not broken and not empty.
-    Returns (success, message).
-    - Not broken: final status code 2xx after redirects.
-    - For HTML pages: body length, </body> or <html, non-empty <title>.
-    - For media (image/pdf): 2xx and non-empty body only.
-    """
-    # Internal links to t23b.org are expected to respond directly (no redirects).
-    # Treat any 3xx as an error here; external links are excluded earlier.
-    try:
-        response = requests.get(
-            url,
-            allow_redirects=False,
-            timeout=LINK_CHECK_TIMEOUT,
-        )
-    except requests.RequestException as e:
-        return False, f"request failed: {e!s}"
-
-    status = response.status_code
-    if 300 <= status < 400:
-        # For internal links, redirects are unexpected. Build a redirect chain for reporting.
-        try:
-            follow = requests.get(
-                url,
-                allow_redirects=True,
-                timeout=LINK_CHECK_TIMEOUT,
-            )
-            chain_parts = []
-            all_resps = list(follow.history) + [follow]
-            prev_url = url
-            for r in all_resps:
-                chain_parts.append(f"{prev_url} ({r.status_code})")
-                prev_url = r.headers.get("Location", prev_url)
-            chain = " -> ".join(chain_parts)
-            return False, f"unexpected redirect status {status}; chain: {chain}"
-        except requests.RequestException as e:
-            return False, f"unexpected redirect status {status}; redirect follow failed: {e!s}"
-
-    if status not in range(200, 300):
-        return False, f"status {status}"
-
-    content = response.content
-    content_type = response.headers.get("Content-Type") or ""
-
-    if _is_media_resource_url(url, content_type):
-        if len(content) < 100:
-            return False, f"media body too short ({len(content)} bytes)"
-        return True, "OK"
-
-    if len(content) < LINK_CHECK_MIN_BODY_LENGTH:
-        return False, f"body too short ({len(content)} bytes)"
-
-    content_lower = content.lower()
-    if b"</body>" not in content_lower and b"<html" not in content_lower:
-        return False, "body lacks </body> or <html"
-
-    title_match = re.search(
-        rb"<title[^>]*>([^<]*)</title>",
-        content,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if not title_match:
-        return False, "no <title> found"
-    title_text = title_match.group(1).decode("utf-8", errors="replace").strip()
-    if not title_text:
-        return False, "empty <title>"
-
-    return True, "OK"
 
 
 def test_TC_05_1_main_content_visible_and_links_recognizable(page: Page, step_logger):
@@ -189,7 +103,7 @@ def test_TC_05_2_all_links_on_homepage_not_broken_and_not_empty(page: Page, step
     step_logger.start_step("Check each link via API (not broken, not empty)")
     failed = []
     for idx, (full_url, dom_index, link_text) in enumerate(to_check, start=1):
-        ok, msg = _check_link_not_broken_and_not_empty(full_url)
+        ok, msg = check_url_not_broken_and_not_empty(full_url)
         print(
             "[test_all_links_on_homepage] "
             f"{idx}/{len(to_check)} index={dom_index} url={full_url!r} text={link_text!r} -> {msg!r}"

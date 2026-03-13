@@ -61,6 +61,7 @@ class StepLogger:
         run_dir: Path,
         test_name: str,
         page: Optional[Page] = None,
+        browser_name: Optional[str] = None,
     ):
         self.run_dir = Path(run_dir)
         self.test_name = test_name
@@ -68,8 +69,11 @@ class StepLogger:
         case_id, _ = _split_test_name(test_name)
         self._case_dir = self.run_dir / case_id
         self._case_dir.mkdir(parents=True, exist_ok=True)
-        # Use full test function name for artefact base name
-        self._base_name = _sanitize_segment(test_name)
+        # Use full test function name for artefact base name; append browser for multi-browser runs
+        base = _sanitize_segment(test_name)
+        if browser_name:
+            base = f"{base}_{_sanitize_segment(browser_name)}"
+        self._base_name = base
         self._shot_index: int = 0
         self._steps: List[Tuple[str, List[str]]] = []
         self._current_step: Optional[str] = None
