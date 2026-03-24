@@ -13,6 +13,7 @@ from tests.step_logger import StepLogger
 
 BASE_URL = "https://www.t23b.org/"
 ABOUT_US_URL = BASE_URL + "about-us/"
+RESOURCES_URL = BASE_URL + "resources/"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -145,3 +146,9 @@ def homepage_url():
 def about_us_url():
     """URL of the About Us page."""
     return ABOUT_US_URL
+
+
+@pytest.fixture
+def resources_url():
+    """URL of the Resources page."""
+    return RESOURCES_URL

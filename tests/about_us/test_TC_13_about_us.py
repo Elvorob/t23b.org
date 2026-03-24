@@ -70,23 +70,25 @@ def _get_containers_with_headings(page: Page):
     """
     Return list of (heading_text, container_locator) for each content block
     that has a heading (h1, h2, h3) and body. Uses section or heading parent.
+
+    If <section> exists but does not wrap headings (empty pass), fall back to
+    each h1/h2/h3 and its parent — same as Resources page layout edge case.
     """
+    result = []
     sections = page.locator("section")
     if sections.count() > 0:
-        result = []
         for i in range(sections.count()):
             sec = sections.nth(i)
             h = sec.locator("h1, h2, h3").first
             if h.count() > 0:
                 result.append((h.inner_text().strip(), sec))
-        return result
-    # No sections: use each h1/h2/h3 and its parent as container
-    headings = page.locator("h1, h2, h3")
-    result = []
-    for i in range(headings.count()):
-        h = headings.nth(i)
-        parent = h.locator("xpath=..")
-        result.append((h.inner_text().strip(), parent))
+
+    if not result:
+        headings = page.locator("h1, h2, h3")
+        for i in range(headings.count()):
+            h = headings.nth(i)
+            parent = h.locator("xpath=..")
+            result.append((h.inner_text().strip(), parent))
     return result
 
 
