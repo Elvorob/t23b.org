@@ -1,6 +1,7 @@
 """
 Pytest configuration and shared fixtures for t23b.org tests.
 """
+from __future__ import annotations
 
 import sys
 from datetime import datetime
@@ -14,6 +15,7 @@ from tests.step_logger import StepLogger
 BASE_URL = "https://www.t23b.org/"
 ABOUT_US_URL = BASE_URL + "about-us/"
 RESOURCES_URL = BASE_URL + "resources/"
+EVENTS_URL = BASE_URL + "events/"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -152,3 +154,9 @@ def about_us_url():
 def resources_url():
     """URL of the Resources page."""
     return RESOURCES_URL
+
+
+@pytest.fixture
+def events_url():
+    """URL of the Events page (redirects to current season)."""
+    return EVENTS_URL
