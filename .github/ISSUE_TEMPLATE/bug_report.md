@@ -5,7 +5,11 @@ title: "[BUG] "
 labels: bug
 assignees: ''
 ---
-
+## 📱 Environment
+- Device:
+- OS:
+- Browser:
+  
 ## 🔍 Steps to reproduce
 1. 
 2. 
@@ -16,11 +20,6 @@ What should happen?
 
 ## ❌ Actual result
 What actually happens?
-
-## 📱 Environment
-- Device:
-- OS:
-- Browser:
 
 ## 🔥 Severity
 - [ ] Critical (blocker, system unusable)
